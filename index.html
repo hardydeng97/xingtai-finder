@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>邢台在哪儿</title>
     <style>
+        :root {
+            --primary-red: #ff4757;
+            --dark-blue: #2f3542;
+            --xt-gold: #f39c12;
+        }
         body {
             margin: 0;
             display: flex;
@@ -12,98 +17,174 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
-            background-color: #f0f2f5;
-            font-family: -apple-system, sans-serif;
+            background-color: #f1f2f6;
+            font-family: sans-serif;
+            overflow: hidden;
         }
-        #status { margin-bottom: 20px; color: #666; font-size: 14px; text-align: center; }
-        .compass {
+
+        /* 外部大圆盘 */
+        .compass-dial {
             position: relative;
-            width: 300px;
-            height: 300px;
-            border-radius: 50%;
+            width: 320px;
+            height: 320px;
             background: #fff;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-radius: 50%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             display: flex;
             align-items: center;
             justify-content: center;
+            border: 4px solid #fff;
         }
-        .arrow {
-            width: 0;
-            height: 0;
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            border-bottom: 120px solid #e74c3c; /* 红色指针 */
+
+        /* 方位标识 */
+        .mark { position: absolute; font-weight: bold; color: #ced4da; font-size: 14px; }
+        .n { top: 10px; color: var(--primary-red); }
+        .s { bottom: 10px; }
+        .w { left: 10px; }
+        .e { right: 10px; }
+
+        /* 邢台文字容器：它会根据方位角旋转，从而让文字出现在圆周正确位置 */
+        #xt-target-container {
             position: absolute;
-            transition: transform 0.1s ease-out;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s ease-out;
+            display: none; /* 初始隐藏 */
         }
-        .arrow::after {
-            content: '';
+        .xt-label {
             position: absolute;
-            left: -20px;
-            top: 120px;
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            border-top: 120px solid #34495e; /* 底部指针 */
+            top: 35px; /* 距离边缘的距离 */
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--xt-gold);
+            font-size: 20px;
+            font-weight: bold;
+            background: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .label { margin-top: 40px; font-size: 24px; font-weight: bold; color: #2c3e50; }
+
+        /* 指针容器 */
+        .needle-wrapper {
+            position: absolute;
+            width: 24px;
+            height: 220px;
+            transition: transform 0.2s cubic-bezier(0.1, 0.5, 0.2, 1);
+            display: none; /* 初始隐藏 */
+        }
+        .needle-red {
+            width: 0; height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 110px solid var(--primary-red);
+        }
+        .needle-dark {
+            width: 0; height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 110px solid var(--dark-blue);
+        }
+
+        .center-pivot {
+            width: 10px; height: 10px;
+            background: #fff; border: 3px solid var(--dark-blue);
+            border-radius: 50%; position: absolute; z-index: 10;
+        }
+
+        .info { margin-top: 40px; text-align: center; }
+        #dist-val { font-size: 32px; font-weight: bold; color: var(--dark-blue); }
+        #hint { color: #7f8c8d; font-size: 14px; margin-top: 10px; }
+
+        .btn-go {
+            padding: 15px 40px; background: var(--dark-blue); color: #fff;
+            border: none; border-radius: 50px; font-weight: bold; cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
-    <div id="status">正在获取定位和传感器权限...</div>
-    
-    <div class="compass">
-        <div class="arrow" id="arrow"></div>
+    <div class="compass-dial">
+        <div class="mark n">N</div>
+        <div class="mark s">S</div>
+        <div class="mark w">W</div>
+        <div class="mark mark e">E</div>
+
+        <div id="xt-target-container">
+            <div class="xt-label">邢台</div>
+        </div>
+
+        <div class="needle-wrapper" id="needle">
+            <div class="needle-red"></div>
+            <div class="needle-dark"></div>
+        </div>
+        
+        <div class="center-pivot"></div>
     </div>
 
-    <div class="label">邢台在这儿</div>
+    <div class="info">
+        <div id="dist-val">-- km</div>
+        <div id="hint">点击下方开始定位</div>
+        <br>
+        <button class="btn-go" id="startBtn">开启指引</button>
+    </div>
 
     <script>
-        const target = { lat: 37.07, lng: 114.50 }; // 邢台坐标
+        const XINGTAI = { lat: 37.07, lng: 114.50 };
         let userPos = null;
-        const arrow = document.getElementById('arrow');
-        const status = document.getElementById('status');
+        let bearingToXT = 0;
 
-        // 计算从点A到点B的方位角
-        function calculateBearing(lat1, lon1, lat2, lon2) {
-            const φ1 = lat1 * Math.PI / 180;
-            const φ2 = lat2 * Math.PI / 180;
-            const Δλ = (lon2 - lon1) * Math.PI / 180;
-            const y = Math.sin(Δλ) * Math.cos(φ2);
-            const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-            let brng = Math.atan2(y, x);
-            return (brng * 180 / Math.PI + 360) % 360;
+        function getBearing(lat1, lon1, lat2, lon2) {
+            const y = Math.sin((lon2 - lon1) * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180);
+            const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+                      Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos((lon2 - lon1) * Math.PI / 180);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
         }
 
-        // 获取位置
-        navigator.geolocation.watchPosition(pos => {
-            userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            status.innerText = `当前定位：${userPos.lat.toFixed(2)}, ${userPos.lng.toFixed(2)}`;
-        }, err => {
-            status.innerText = "请允许地理定位权限以计算方向。";
-        });
+        async function init() {
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('hint').innerText = "请求位置授权中...";
 
-        // 获取手机朝向
-        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-        window.addEventListener('deviceorientation', handleOrientation, true);
-
-        function handleOrientation(event) {
-            let heading = event.webkitCompassHeading || (360 - event.alpha);
-            
-            if (userPos && heading !== undefined) {
-                const bearing = calculateBearing(userPos.lat, userPos.lng, target.lat, target.lng);
-                // 箭头旋转角度 = 目标方位角 - 手机当前朝向
-                const rotateAngle = bearing - heading;
-                arrow.style.transform = `rotate(${rotateAngle}deg)`;
-            }
-        }
-
-        // 处理 iOS 权限请求
-        document.body.onclick = () => {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission().catch(console.error);
+                const res = await DeviceOrientationEvent.requestPermission();
+                if (res !== 'granted') return;
             }
-        };
+
+            navigator.geolocation.watchPosition(pos => {
+                userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                
+                // 计算距离
+                const R = 6371;
+                const dLat = (XINGTAI.lat - userPos.lat) * Math.PI / 180;
+                const dLon = (XINGTAI.lng - userPos.lng) * Math.PI / 180;
+                const a = Math.sin(dLat/2)**2 + Math.cos(userPos.lat*Math.PI/180)*Math.cos(XINGTAI.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+                const dist = (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1);
+                
+                document.getElementById('dist-val').innerText = dist + " km";
+
+                // 计算邢台在轮盘上的绝对方位角度
+                bearingToXT = getBearing(userPos.lat, userPos.lng, XINGTAI.lat, XINGTAI.lng);
+                
+                // 让“邢台”文字出现在轮盘对应的角度上
+                const xtContainer = document.getElementById('xt-target-container');
+                xtContainer.style.display = 'block';
+                xtContainer.style.transform = `rotate(${bearingToXT}deg)`;
+                
+                document.getElementById('needle').style.display = 'block';
+                document.getElementById('hint').innerText = "已在轮盘标出邢台方向";
+            });
+
+            window.addEventListener('deviceorientationabsolute', e => {
+                let heading = e.webkitCompassHeading || (360 - e.alpha);
+                if (heading !== undefined && userPos) {
+                    // 指针旋转角度 = 邢台方位角 - 手机当前朝向
+                    const needleAngle = bearingToXT - heading;
+                    document.getElementById('needle').style.transform = `rotate(${needleAngle}deg)`;
+                }
+            }, true);
+        }
+
+        document.getElementById('startBtn').addEventListener('click', init);
     </script>
 </body>
 </html>
