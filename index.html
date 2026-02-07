@@ -59,4 +59,154 @@
             position: absolute;
             color: var(--gold);
             font-weight: 900;
-            font-size
+            font-size: 20px;
+            display: none; /* 授权后显示 */
+            text-shadow: 0 0 5px rgba(255,165,2,0.3);
+        }
+
+        /* 指针容器：相对于罗盘旋转 */
+        #arrow-wrapper {
+            position: absolute;
+            width: 40px; height: 240px;
+            z-index: 10;
+            display: none;
+            transition: transform 0.2s ease-out;
+        }
+
+        .needle-north {
+            width: 0; height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 120px solid var(--primary-red);
+        }
+        .needle-south {
+            width: 0; height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 120px solid var(--dark-blue);
+        }
+
+        .center-dot {
+            position: absolute;
+            width: 14px; height: 14px;
+            background: #fff;
+            border: 3px solid var(--dark-blue);
+            border-radius: 50%;
+            z-index: 20;
+        }
+
+        .info-panel { text-align: center; margin-top: 40px; }
+        .distance-text { font-size: 36px; font-weight: 800; color: var(--dark-blue); }
+        .distance-text span { font-size: 16px; color: #a4b0be; }
+        .hint-text { color: var(--gold); margin-top: 10px; font-weight: 500; height: 20px; }
+
+        .btn-start {
+            margin-top: 30px; padding: 12px 40px;
+            background: var(--dark-blue); color: white;
+            border: none; border-radius: 30px;
+            font-size: 16px; font-weight: bold; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="compass-shadow">
+        <div id="compass-dial">
+            <div class="mark mark-n">N</div>
+            <div class="mark mark-s">S</div>
+            <div class="mark mark-w">W</div>
+            <div class="mark mark-e">E</div>
+            
+            <div id="xt-label">邢台</div>
+
+            <div id="arrow-wrapper">
+                <div class="needle-north"></div>
+                <div class="needle-south"></div>
+            </div>
+        </div>
+        <div class="center-dot"></div>
+    </div>
+
+    <div class="info-panel">
+        <div class="distance-text" id="distanceVal">-- <span>km</span></div>
+        <div id="hintText" class="hint-text">点击下方开启实景导航</div>
+    </div>
+
+    <button class="btn-start" onclick="initApp()">开启寻找之旅</button>
+
+    <script>
+        const XT = { lat: 37.07, lng: 114.50 };
+        let userPos = null;
+        let bearingToXT = 0;
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+            return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1);
+        }
+
+        function getBearing(lat1, lon1, lat2, lon2) {
+            const y = Math.sin((lon2-lon1)*Math.PI/180) * Math.cos(lat2*Math.PI/180);
+            const x = Math.cos(lat1*Math.PI/180)*Math.sin(lat2*Math.PI/180) - Math.sin(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.cos((lon2-lon1)*Math.PI/180);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+
+        async function initApp() {
+            document.querySelector('.btn-start').style.display = 'none';
+            
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                const res = await DeviceOrientationEvent.requestPermission();
+                if (res !== 'granted') return;
+            }
+
+            navigator.geolocation.watchPosition(pos => {
+                userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                const d = getDistance(userPos.lat, userPos.lng, XT.lat, XT.lng);
+                bearingToXT = getBearing(userPos.lat, userPos.lng, XT.lat, XT.lng);
+                
+                document.getElementById('distanceVal').innerHTML = `${d} <span>km</span>`;
+                
+                // 设置“邢台”文字在罗盘上的位置
+                const label = document.getElementById('xt-label');
+                const radius = 110; // 文字距离中心的距离
+                const angleRad = (bearingToXT - 90) * Math.PI / 180;
+                label.style.left = (150 + radius * Math.cos(angleRad) - 20) + 'px';
+                label.style.top = (150 + radius * Math.sin(angleRad) - 10) + 'px';
+                label.style.display = 'block';
+                
+                document.getElementById('arrow-wrapper').style.display = 'block';
+            });
+
+            window.addEventListener('deviceorientationabsolute', handleRotate, true);
+            window.addEventListener('deviceorientation', handleRotate, true);
+        }
+
+        function handleRotate(event) {
+            let heading = event.webkitCompassHeading || (360 - event.alpha);
+            
+            if (heading !== undefined) {
+                // 1. 旋转整个罗盘，使 N 始终指北
+                document.getElementById('compass-dial').style.transform = `rotate(${-heading}deg)`;
+                
+                // 2. 指针相对于地理北方的角度（已由罗盘抵消了手机旋转，所以直接用 bearing）
+                document.getElementById('arrow-wrapper').style.transform = `rotate(${bearingToXT}deg)`;
+
+                // 3. 手机朝向与邢台方位角的差值，用于特效触发
+                const currentAngle = (bearingToXT - heading + 360) % 360;
+                const diff = Math.min(currentAngle, 360 - currentAngle);
+
+                if (diff < 10) {
+                    document.body.classList.add('aligned');
+                    document.getElementById('hintText').innerText = '前方即是邢台！';
+                    if(navigator.vibrate) navigator.vibrate(50);
+                } else {
+                    document.body.classList.remove('aligned');
+                    document.getElementById('hintText').innerText = '转动手机，找寻故乡';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
