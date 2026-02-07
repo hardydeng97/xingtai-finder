@@ -16,126 +16,139 @@
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
             height: 100vh; background-color: var(--bg-color);
-            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            font-family: "PingFang SC", sans-serif;
             overflow: hidden; transition: background 0.8s ease;
         }
 
-        /* 指南针外框架 */
-        .compass-frame {
+        /* 整个指南针组合体 */
+        .compass-stack {
             position: relative;
             width: 320px; height: 320px;
             display: flex; align-items: center; justify-content: center;
         }
 
-        /* 清风楼背景图 */
+        /* 1. 最底层：清风楼虚影 */
         .qf-building {
             position: absolute;
-            width: 200px; height: 200px;
-            background-image: url('https://img.icons8.com/ios-filled/300/pagoda.png'); /* 清风楼象征图 */
-            background-size: contain; background-repeat: no-repeat; background-position: center;
-            opacity: 0.05; transition: all 0.8s ease;
+            width: 180px; height: 180px;
+            background: url('https://www.svgrepo.com/show/24436/pagoda.svg') no-repeat center;
+            background-size: contain;
+            opacity: 0.1; 
             filter: grayscale(100%);
+            transition: all 0.6s ease;
             z-index: 1;
         }
 
-        /* 旋转的罗盘刻度盘 */
-        #compass-dial {
+        /* 2. 中间层：罗盘圆盘与刻度（固定或微调） */
+        .compass-dial {
             position: absolute;
             width: 300px; height: 300px;
-            border-radius: 50%;
             background: #ffffff;
-            box-shadow: 20px 20px 60px #d1d1d1, -20px -20px 60px #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             z-index: 2;
-            transition: transform 0.1s linear;
         }
 
-        .mark { position: absolute; font-weight: bold; font-size: 18px; color: #ced4da; }
-        .mark-n { top: 10px; left: 50%; transform: translateX(-50%); color: var(--primary-red); }
-        .mark-s { bottom: 10px; left: 50%; transform: translateX(-50%); }
-        .mark-w { left: 10px; top: 50%; transform: translateY(-50%); }
-        .mark-e { right: 10px; top: 50%; transform: translateY(-50%); }
+        /* 刻度线 */
+        .ticks { position: absolute; width: 100%; height: 100%; top:0; left:0; }
+        .tick {
+            position: absolute; width: 2px; height: 8px;
+            background: #dfe4ea; left: 50%; top: 0;
+            transform-origin: 50% 150px;
+        }
+        .tick:nth-child(5n) { height: 15px; background: #a4b0be; }
 
-        /* 指针容器：确保它在罗盘正中心 */
+        .mark { position: absolute; font-weight: bold; font-size: 16px; color: #a4b0be; }
+        .mark-n { top: 20px; left: 50%; transform: translateX(-50%); color: var(--primary-red); }
+        .mark-s { bottom: 20px; left: 50%; transform: translateX(-50%); }
+        .mark-w { left: 20px; top: 50%; transform: translateY(-50%); }
+        .mark-e { right: 20px; top: 50%; transform: translateY(-50%); }
+
+        /* 3. 最顶层：指向邢台的指针 */
         #arrow-wrapper {
             position: absolute;
+            width: 30px; height: 260px; /* 贯穿圆心的长条 */
+            z-index: 10;
+            display: none; /* 初始隐藏，定位后显示 */
+            /* 关键：设置旋转中心为正圆心 */
             top: 50%; left: 50%;
-            width: 0; height: 0; /* 容器本身不占位，作为旋转原点 */
-            display: none;
-            z-index: 5;
-            transition: transform 0.2s ease-out;
+            margin-top: -130px; margin-left: -15px;
+            transition: transform 0.2s cubic-bezier(0.1, 0.5, 0.2, 1);
         }
-        
-        /* 红色尖端：指向邢台 */
-        .needle-red {
-            position: absolute;
-            bottom: 0; left: -15px; /* 水平居中 */
+        .needle-top {
             width: 0; height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
+            border-left: 15px solid transparent; border-right: 15px solid transparent;
             border-bottom: 130px solid var(--primary-red);
-            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.1));
         }
-        /* 深蓝色尾端 */
-        .needle-dark {
-            position: absolute;
-            top: 0; left: -15px;
+        .needle-bottom {
             width: 0; height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
+            border-left: 15px solid transparent; border-right: 15px solid transparent;
             border-top: 130px solid var(--dark-blue);
         }
 
         .center-dot {
-            width: 12px; height: 12px;
+            width: 10px; height: 10px;
             background: #fff; border: 3px solid var(--dark-blue);
-            border-radius: 50%; position: absolute; z-index: 10;
+            border-radius: 50%; position: absolute; z-index: 20;
         }
 
-        /* 文案区 */
-        .info-panel { text-align: center; margin-top: 50px; padding: 0 20px; z-index: 10; }
-        #dist-text { font-size: 20px; font-weight: 800; color: var(--dark-blue); margin-bottom: 12px; }
-        #greeting-msg { font-size: 16px; color: var(--xt-gold); font-weight: 500; }
+        /* 文案信息 */
+        .info-panel { text-align: center; margin-top: 50px; }
+        #dist-text { font-size: 20px; font-weight: 800; color: var(--dark-blue); }
+        #greeting-msg { font-size: 16px; color: var(--xt-gold); margin-top: 10px; font-weight: 500; }
 
-        /* 状态特效 */
+        /* 对准特效 */
         body.aligned { background-color: #fef9e7; }
-        body.aligned .qf-building { opacity: 0.6; filter: grayscale(0%) sepia(1); transform: scale(1.1); }
+        body.aligned .qf-building {
+            opacity: 0.7; filter: grayscale(0%) sepia(100%) saturate(200%);
+            transform: scale(1.1);
+        }
 
         .btn-start {
-            margin-top: 30px; padding: 16px 48px;
+            margin-top: 30px; padding: 15px 45px;
             background: var(--dark-blue); color: white;
-            border: none; border-radius: 50px;
-            font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: none; border-radius: 50px; font-weight: bold; cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <div class="compass-frame">
+    <div class="compass-stack">
         <div class="qf-building"></div>
-        <div id="compass-dial">
+        <div class="compass-dial">
+            <div class="ticks" id="tickBox"></div>
             <div class="mark mark-n">N</div>
             <div class="mark mark-s">S</div>
             <div class="mark mark-w">W</div>
             <div class="mark mark-e">E</div>
         </div>
         <div id="arrow-wrapper">
-            <div class="needle-red"></div>
-            <div class="needle-dark"></div>
+            <div class="needle-top"></div>
+            <div class="needle-bottom"></div>
         </div>
         <div class="center-dot"></div>
     </div>
 
     <div class="info-panel">
         <div id="dist-text">无论多远，心向邢襄。</div>
-        <div id="greeting-msg">请开启指引之旅</div>
+        <div id="greeting-msg">请点击按钮寻找家乡方位</div>
     </div>
 
     <button class="btn-start" onclick="initApp()">开启寻找之旅</button>
 
     <script>
-        const XT_TARGET = { lat: 37.07, lng: 114.50 };
+        const XT = { lat: 37.07, lng: 114.50 };
         let userPos = null;
         let bearingToXT = 0;
+
+        // 生成刻度
+        const tickBox = document.getElementById('tickBox');
+        for (let i = 0; i < 60; i++) {
+            const tick = document.createElement('div');
+            tick.className = 'tick';
+            tick.style.transform = `rotate(${i * 6}deg)`;
+            tickBox.appendChild(tick);
+        }
 
         function getDistance(lat1, lon1, lat2, lon2) {
             const R = 6371;
@@ -151,26 +164,8 @@
             return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
         }
 
-        function updateStatus(dist) {
-            const distEl = document.getElementById('dist-text');
-            const msgEl = document.getElementById('greeting-msg');
-            
-            distEl.innerText = `您距离邢台还有 ${dist.toFixed(1)} 公里`;
-
-            if (dist < 20) {
-                msgEl.innerText = "您已在邢台，欢迎回家！";
-            } else if (dist < 500) {
-                msgEl.innerText = "冀南明珠，近在咫尺。";
-            } else if (dist < 1500) {
-                msgEl.innerText = "关山万里，此情可待。";
-            } else {
-                msgEl.innerText = "无论多远，心向邢襄。";
-            }
-        }
-
         async function initApp() {
             document.querySelector('.btn-start').style.display = 'none';
-            
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 const res = await DeviceOrientationEvent.requestPermission();
                 if (res !== 'granted') return;
@@ -178,13 +173,13 @@
 
             navigator.geolocation.watchPosition(pos => {
                 userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                const d = getDistance(userPos.lat, userPos.lng, XT_TARGET.lat, XT_TARGET.lng);
-                bearingToXT = getBearing(userPos.lat, userPos.lng, XT_TARGET.lat, XT_TARGET.lng);
+                const d = getDistance(userPos.lat, userPos.lng, XT.lat, XT.lng);
+                bearingToXT = getBearing(userPos.lat, userPos.lng, XT.lat, XT.lng);
                 
-                updateStatus(d);
+                document.getElementById('dist-text').innerText = `您距离邢台还有 ${d.toFixed(1)} 公里`;
+                const msg = d < 20 ? "您已在邢台，欢迎回家！" : d < 500 ? "冀南明珠，近在咫尺。" : d < 1500 ? "关山万里，此情可待。" : "无论多远，心向邢襄。";
+                document.getElementById('greeting-msg').innerText = msg;
                 document.getElementById('arrow-wrapper').style.display = 'block';
-            }, err => {
-                document.getElementById('dist-text').innerText = "获取定位失败，请检查GPS";
             });
 
             window.addEventListener('deviceorientationabsolute', handleRotate, true);
@@ -193,17 +188,17 @@
 
         function handleRotate(event) {
             let heading = event.webkitCompassHeading || (360 - event.alpha);
-            if (heading !== undefined) {
-                // 罗盘底层跟随手机旋转抵消，N永远指北
-                document.getElementById('compass-dial').style.transform = `rotate(${-heading}deg)`;
-                // 指针在罗盘内指向邢台方位角
-                document.getElementById('arrow-wrapper').style.transform = `rotate(${bearingToXT}deg)`;
+            if (heading !== undefined && userPos) {
+                // 指针转动逻辑：
+                // 红色针尖指向的角度 = (家乡相对于北方的角度) - (手机当前相对于北方的角度)
+                const needleAngle = bearingToXT - heading;
+                document.getElementById('arrow-wrapper').style.transform = `rotate(${needleAngle}deg)`;
 
-                // 对准判断（正负8度）
-                const currentAngle = (bearingToXT - heading + 360) % 360;
-                const diff = Math.min(currentAngle, 360 - currentAngle);
+                // 对准判断（正负10度）
+                const diff = Math.abs(needleAngle % 360);
+                const normalizedDiff = Math.min(diff, 360 - diff);
 
-                if (diff < 8) {
+                if (normalizedDiff < 10) {
                     document.body.classList.add('aligned');
                     if(navigator.vibrate) navigator.vibrate(50);
                 } else {
