@@ -42,10 +42,9 @@
         .qf-building {
             position: absolute;
             width: 220px; height: 220px;
-            /* 使用一张清风楼的艺术剪影或图片 */
             background-image: url('https://img.icons8.com/ios-filled/250/000000/pagoda.png'); 
             background-size: contain; background-repeat: no-repeat; background-position: center;
-            opacity: 0.1; /* 默认暗淡 */
+            opacity: 0.1; 
             transition: all 0.6s ease;
             filter: grayscale(100%);
             z-index: 1;
@@ -54,7 +53,7 @@
         /* 当对准时背景亮起 */
         body.aligned .qf-building {
             opacity: 0.8;
-            filter: grayscale(0%) sepia(50%) hue-rotate(-50deg); /* 模拟金色光辉 */
+            filter: grayscale(0%) sepia(50%) hue-rotate(-50deg); 
             transform: scale(1.05);
         }
         body.aligned { background-color: #fdf6e3; }
@@ -67,6 +66,9 @@
             border: 2px solid rgba(0,0,0,0.05);
             z-index: 2;
             transition: transform 0.1s linear;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .mark { position: absolute; font-weight: bold; font-size: 18px; color: #ced4da; }
@@ -75,13 +77,20 @@
         .mark-w { left: 10px; top: 50%; transform: translateY(-50%); }
         .mark-e { right: 10px; top: 50%; transform: translateY(-50%); }
 
-        /* 指针容器 */
+        /* 修改：确保指针容器居中且旋转轴在正圆心 */
         #arrow-wrapper {
             position: absolute;
-            width: 30px; height: 260px;
+            top: 50%;
+            left: 50%;
+            width: 30px; 
+            height: 260px;
+            /* 将自身中心移至父圆心，通过margin实现绝对对齐 */
+            margin-top: -130px; 
+            margin-left: -15px;
             z-index: 5;
             display: none;
             transition: transform 0.2s ease-out;
+            transform-origin: center center;
         }
         .needle-top {
             width: 0; height: 0;
@@ -92,6 +101,16 @@
             width: 0; height: 0;
             border-left: 15px solid transparent; border-right: 15px solid transparent;
             border-top: 130px solid var(--dark-blue);
+        }
+
+        /* 新增：中心轴点，让指针转动看起来更真实 */
+        .center-pivot {
+            position: absolute;
+            width: 10px; height: 10px;
+            background: white;
+            border: 2px solid var(--dark-blue);
+            border-radius: 50%;
+            z-index: 6;
         }
 
         /* 文案信息 */
@@ -122,6 +141,7 @@
                 <div class="needle-top"></div>
                 <div class="needle-bottom"></div>
             </div>
+            <div class="center-pivot"></div>
         </div>
     </div>
 
@@ -137,10 +157,8 @@
         let userPos = null;
         let bearingToXT = 0;
 
-        // 获取天气信息
         async function fetchWeather() {
             try {
-                // 使用和风天气或类似API的演示接口 (邢台市代码: 101090901)
                 const response = await fetch('https://wttr.in/Xingtai?format=%c+%t+%C');
                 const data = await response.text();
                 document.getElementById('weather-panel').innerText = `邢台当前：${data}`;
@@ -166,9 +184,7 @@
         function updateUI(dist) {
             const distEl = document.getElementById('dist-text');
             const msgEl = document.getElementById('greeting-msg');
-            
             distEl.innerText = `您距离邢台还有 ${dist.toFixed(1)} 公里`;
-
             if (dist < 20) {
                 msgEl.innerText = "您已在邢台，欢迎回家！";
             } else if (dist < 500) {
@@ -183,21 +199,17 @@
         async function initApp() {
             document.querySelector('.btn-start').style.display = 'none';
             fetchWeather();
-            
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 const res = await DeviceOrientationEvent.requestPermission();
                 if (res !== 'granted') return;
             }
-
             navigator.geolocation.watchPosition(pos => {
                 userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                 const d = getDistance(userPos.lat, userPos.lng, XT_TARGET.lat, XT_TARGET.lng);
                 bearingToXT = getBearing(userPos.lat, userPos.lng, XT_TARGET.lat, XT_TARGET.lng);
-                
                 updateUI(d);
                 document.getElementById('arrow-wrapper').style.display = 'block';
             });
-
             window.addEventListener('deviceorientationabsolute', handleRotate, true);
             window.addEventListener('deviceorientation', handleRotate, true);
         }
@@ -205,15 +217,10 @@
         function handleRotate(event) {
             let heading = event.webkitCompassHeading || (360 - event.alpha);
             if (heading !== undefined) {
-                // 罗盘指北
                 document.getElementById('compass-dial').style.transform = `rotate(${-heading}deg)`;
-                // 指针指邢台
                 document.getElementById('arrow-wrapper').style.transform = `rotate(${bearingToXT}deg)`;
-
-                // 检查是否对准 (误差10度以内)
                 const currentAngle = (bearingToXT - heading + 360) % 360;
                 const diff = Math.min(currentAngle, 360 - currentAngle);
-
                 if (diff < 10) {
                     document.body.classList.add('aligned');
                     if(navigator.vibrate) navigator.vibrate(50);
